@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>FormCoach</title>
+<style>
+:root{--bg:#000;--surface:#111;--border:#222;--text:#fff;--muted:#888;--accent:#2dd4bf;--good:#22c55e;--bad:#ef4444}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans SC',sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.top{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.top input{width:110px;padding:10px 14px;border-radius:24px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;outline:none;transition:border-color .2s}
+.top input:focus{border-color:var(--accent);width:160px}
+.top input::placeholder{color:var(--muted)}
+.top select{flex:1;min-width:140px;padding:10px 36px 10px 14px;border-radius:24px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-weight:600;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23737373' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;cursor:pointer}
+.top select:focus{border-color:var(--accent)}
+.upload-btn{cursor:pointer;padding:9px 14px;border-radius:24px;border:1px solid var(--border);font-size:13px;color:var(--muted);background:var(--bg);transition:all .2s;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.upload-btn:hover{border-color:var(--accent);color:var(--text)}
+.upload-btn.ready{border-color:var(--accent);color:var(--accent);background:rgba(255,107,107,.06)}
+.upload-btn input{display:none;width:0;border:none;padding:0}
+.cam{flex:1;position:relative;background:radial-gradient(ellipse at center,#1a1a1a 0%,#000 70%);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.cam video,.cam canvas{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain}
+.cam canvas{z-index:2}
+.cam::before{content:'';position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.4) 100%);pointer-events:none}
+.hud{position:absolute;top:16px;right:16px;z-index:10;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.badge{background:rgba(20,20,20,.85);border:1px solid rgba(45,212,191,.06);border-radius:16px;padding:8px 16px;text-align:center;backdrop-filter:blur(12px)}
+.badge .v{font-size:28px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.badge .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+.badge.score .v{color:var(--accent)}
+.badge.err .v{color:var(--bad)}
+.fb-bar{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:10;text-align:center;transition:all .25s ease;max-width:90%}
+.fb-msg{padding:10px 24px;border-radius:24px;font-size:15px;font-weight:700;background:rgba(20,20,20,.9);border:1px solid rgba(45,212,191,.06);backdrop-filter:blur(12px);transition:all .2s ease;line-height:1.4}
+.fb-msg.ok{color:var(--good);border-color:rgba(34,197,94,.2)}
+.fb-msg.err{color:var(--bad);border-color:rgba(239,68,68,.2);animation:fbPulse .5s ease}
+@keyframes fbPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+.controls{display:flex;gap:12px;padding:12px 16px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;align-items:center;justify-content:center}
+.btn{padding:12px 36px;border-radius:26px;font-size:15px;font-weight:700;border:none;cursor:pointer;transition:all .2s;letter-spacing:.3px}
+.btn-go{background:var(--accent);color:#000}
+.btn-go:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-stop{background:rgba(239,68,68,.15);color:var(--bad);border:1px solid rgba(239,68,68,.3)}
+.btn-stop:hover{background:rgba(239,68,68,.25)}
+.overlay{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.overlay.hidden{display:none}
+.overlay .card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:36px 28px;text-align:center;max-width:380px;width:92%}
+.overlay .icon{font-size:56px;margin-bottom:8px}
+.overlay .big{font-size:64px;font-weight:900;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums}
+.overlay .grade{font-size:12px;color:var(--muted);letter-spacing:3px;margin:6px 0;text-transform:uppercase}
+.overlay .verdict{font-size:15px;font-weight:700;margin-bottom:16px}
+.overlay .row{display:flex;justify-content:center;gap:28px;margin:16px 0}
+.overlay .stat .v{font-size:22px;font-weight:800}.overlay .stat .l{font-size:11px;color:var(--muted)}
+.overlay .errs{text-align:left;max-height:150px;overflow-y:auto;margin-top:12px}
+.overlay .errs .e{display:flex;justify-content:space-between;padding:8px 12px;margin-bottom:4px;border-radius:10px;background:rgba(239,68,68,.04);font-size:13px}
+.overlay .errs .e .t{color:var(--bad);font-weight:600}
+.overlay .btn-row{display:flex;gap:10px;justify-content:center;margin-top:18px}
+optgroup{font-weight:700;color:var(--accent);font-size:13px;background:var(--surface)}
+option{color:var(--text);background:var(--surface);font-weight:400;padding:6px}
+@media(max-width:600px){
+  .top{padding:10px 12px;gap:6px}
+  .fb-msg{font-size:13px;padding:8px 18px}
+  .badge{padding:6px 12px}.badge .v{font-size:22px}
+  .btn{padding:10px 24px;font-size:14px}
+  .overlay .card{padding:24px 18px}.overlay .big{font-size:48px}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <input type="text" id="moveSearch" placeholder="搜索..." oninput="filterMoves()" style="max-width:100px">
+  <select id="moveSelect" onchange="onMoveChange()"></select>
+  <label class="upload-btn" id="uploadLabel">📁 上传<input type="file" accept="video/*" id="fileInput" onchange="onVideo(event)"></label>
+  <a href="/" style="font-size:12px;color:var(--muted);text-decoration:none;flex-shrink:0" title="返回首页">← 首页</a>
+  <span id="userBadge" style="font-size:12px;color:var(--muted);flex-shrink:0;cursor:pointer;margin-left:auto" onclick="logout()" title="点击退出"></span>
+</div>
+
+<div class="cam">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+  <div class="hud">
+    <div class="badge score"><div class="v" id="hudScore">--</div><div class="l">Score</div></div>
+    <div class="badge"><div class="v" id="hudTime">00:00</div><div class="l">Time</div></div>
+    <div class="badge" id="personBadge" style="display:none"><div class="v" style="color:#f59e0b">👤</div><div class="l">未检测到人</div></div>
+    <div class="badge err" id="errBadge" style="display:none"><div class="v" id="hudErrors">0</div><div class="l">错误</div></div>
+  </div>
+  <div class="fb-bar"><div class="fb-msg ok" id="fbMsg">准备开始训练</div></div>
+
+  <!-- Login Overlay -->
+  <div class="overlay" id="loginOverlay">
+    <div class="card" style="max-width:340px">
+      <div style="font-size:40px;margin-bottom:8px">🏋️</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:4px;letter-spacing:-.5px">Form<span style="color:var(--accent)">Coach</span></div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:20px" id="loginTitle">登录你的账号</div>
+      <input type="text" id="loginUser" placeholder="用户名" style="width:100%;padding:12px 16px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:15px;outline:none;margin-bottom:10px" value="demo">
+      <input type="password" id="loginPass" placeholder="密码" style="width:100%;padding:12px 16px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:15px;outline:none;margin-bottom:6px" value="123456">
+      <div id="loginError" style="color:var(--bad);font-size:12px;margin-bottom:8px;display:none"></div>
+      <button class="btn btn-go" onclick="doLogin()" style="width:100%;margin-bottom:8px" id="loginBtn">登录</button>
+      <button style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer" onclick="toggleLogin()" id="toggleBtn">没有账号？注册</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="resOverlay">
+    <div class="card" style="max-width:400px">
+      <div style="font-size:14px;color:var(--muted);margin-bottom:12px" id="rMoveName">--</div>
+      <!-- Score ring -->
+      <div style="width:120px;height:120px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;border:4px solid var(--border)" id="rRing">
+        <div style="text-align:center">
+          <div class="big" id="rScore" style="font-size:44px;line-height:1">--</div>
+          <div class="grade" id="rGrade" style="margin:0">--</div>
+        </div>
+      </div>
+      <div class="verdict" id="rVerdict"></div>
+      <div class="row">
+        <div class="stat"><div class="v" id="rTime">0s</div><div class="l">时长</div></div>
+        <div class="stat"><div class="v" id="rAvg">--</div><div class="l">平均分</div></div>
+        <div class="stat"><div class="v" id="rFrames">0</div><div class="l">帧数</div></div>
+      </div>
+      <div class="errs" id="rErrors"></div>
+      <div class="btn-row">
+        <button class="btn btn-go" onclick="startCamera()">再来一组</button>
+        <button class="btn btn-stop" onclick="resetAll()">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn btn-go" id="btnStart" onclick="startCamera()">▶ 开始训练</button>
+  <button class="btn btn-stop" id="btnStop" onclick="endTraining()" style="display:none">⏹ 结束</button>
+  <button class="btn" style="background:var(--surface);color:var(--muted);border:1px solid var(--border);font-size:13px;padding:8px 16px" onclick="showDemo()">📺 示范</button>
+  <button class="btn" style="background:var(--surface);color:var(--muted);border:1px solid var(--border);font-size:13px;padding:8px 16px" onclick="showHistory()">📊 历史</button>
+</div>
+
+<script type="module">
+import {PoseLandmarker,FilesetResolver} from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/+esm';
+const CDN=['https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm','https://unpkg.com/@mediapipe/tasks-vision@0.10.18/wasm'];
+const MODEL=['https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task','https://cdn.jsdelivr.net/npm/@mediapipe-models/pose_landmarker/pose_landmarker_full.task'];
+const MOVES=[{id:1,n:'深蹲',c:'下肢'},{id:2,n:'俯卧撑',c:'上肢'},{id:3,n:'平板支撑',c:'核心'},{id:4,n:'弓步蹲',c:'下肢'},{id:5,n:'臀桥',c:'下肢'},{id:6,n:'肩部推举',c:'上肢'},{id:7,n:'硬拉',c:'下肢'},{id:8,n:'仰卧起坐',c:'核心'},{id:9,n:'二头弯举',c:'上肢'},{id:10,n:'高抬腿',c:'下肢'},{id:11,n:'靠墙静蹲',c:'下肢'},{id:12,n:'相扑深蹲',c:'下肢'},{id:13,n:'保加利亚分腿蹲',c:'下肢'},{id:14,n:'侧弓步',c:'下肢'},{id:15,n:'小腿提踵',c:'下肢'},{id:16,n:'早安式体前屈',c:'下肢'},{id:17,n:'跳跃深蹲',c:'下肢'},{id:18,n:'钻石俯卧撑',c:'上肢'},{id:19,n:'宽距俯卧撑',c:'上肢'},{id:20,n:'三头臂屈伸',c:'上肢'},{id:21,n:'侧平举',c:'上肢'},{id:22,n:'前平举',c:'上肢'},{id:23,n:'跪姿俯卧撑',c:'上肢'},{id:24,n:'上斜俯卧撑',c:'上肢'},{id:25,n:'俄罗斯转体',c:'核心'},{id:26,n:'死虫式',c:'核心'},{id:27,n:'鸟狗式',c:'核心'},{id:28,n:'侧平板',c:'核心'},{id:29,n:'登山者',c:'核心'},{id:30,n:'V字卷腹',c:'核心'},{id:31,n:'波比跳',c:'全身'},{id:32,n:'开合跳',c:'全身'},{id:33,n:'单腿深蹲',c:'下肢'},{id:34,n:'后撤步弓步',c:'下肢'},{id:35,n:'交替弓步跳',c:'下肢'},{id:36,n:'蛙跳',c:'下肢'},{id:37,n:'蟹步走',c:'下肢'},{id:38,n:'引体向上',c:'上肢'},{id:39,n:'俯身划船',c:'上肢'},{id:40,n:'蜘蛛人俯卧撑',c:'上肢'},{id:41,n:'仰卧抬腿',c:'核心'},{id:42,n:'剪刀腿',c:'核心'},{id:43,n:'交替触踝',c:'核心'},{id:44,n:'平板交替抬手',c:'核心'},{id:45,n:'猫牛式',c:'拉伸'},{id:46,n:'下犬式',c:'拉伸'},{id:47,n:'婴儿式',c:'拉伸'},{id:48,n:'肩部拉伸',c:'拉伸'},{id:49,n:'站立体前屈',c:'拉伸'},{id:50,n:'上犬式',c:'拉伸'}];
+
+const $=id=>document.getElementById(id);
+let pose,ws,sessionId,isRunning=false,animId,timerInterval,trainStart;
+let curId=1,frameIdx=0,scores=[],errorMap={},totalFrames=0,errorFrames=0,lastErrKey='',uploadedVideo=null,authToken='',currentUser=null;
+
+// Init moves
+function renderMoves(filter=''){
+  const cats=['下肢','上肢','核心','全身','拉伸'],icons={下肢:'🏋️',上肢:'💪',核心:'🧘',全身:'🔥',拉伸:'🧘'};
+  let h='';
+  for(const c of cats){
+    const moves=MOVES.filter(m=>m.c===c&&(!filter||m.n.includes(filter)));
+    if(moves.length)h+=`<optgroup label="${icons[c]} ${c}">`+moves.map(m=>`<option value="${m.id}"${m.id===curId?' selected':''}>${m.n}</option>`).join('')+'</optgroup>';
+  }
+  $('moveSelect').innerHTML=h||'<option>无匹配</option>';
+}
+renderMoves();
+window.filterMoves=()=>renderMoves($('moveSearch').value.trim());
+window.onMoveChange=()=>{curId=parseInt($('moveSelect').value)};
+window.onVideo=e=>{const f=e.target.files[0];if(!f)return;uploadedVideo=URL.createObjectURL(f);const lb=$('uploadLabel');lb.classList.add('ready');lb.innerHTML='✅ '+f.name.substring(0,10)+'<input type="file" accept="video/*" id="fileInput" onchange="onVideo(event)">'};
+
+function getMoveType(){
+  const n=(MOVES.find(x=>x.id===curId)||{}).n||'';
+  if(n.includes('深蹲'))return'SQUAT';if(n.includes('俯卧撑'))return'PUSH_UP';if(n.includes('平板'))return'PLANK';
+  if(n.includes('弓步'))return'LUNGE';if(n.includes('臀桥'))return'GLUTE_BRIDGE';if(n.includes('推举'))return'SHOULDER_PRESS';
+  if(n.includes('硬拉'))return'DEADLIFT';if(n.includes('仰卧起坐'))return'SIT_UP';if(n.includes('弯举'))return'BICEP_CURL';
+  if(n.includes('高抬腿'))return'HIGH_KNEE';if(n.includes('静蹲'))return'WALL_SIT';if(n.includes('相扑'))return'SUMO_SQUAT';
+  if(n.includes('分腿'))return'BULGARIAN_SPLIT_SQUAT';if(n.includes('侧弓步'))return'SIDE_LUNGE';if(n.includes('提踵'))return'CALF_RAISE';
+  if(n.includes('早安'))return'GOOD_MORNING';if(n.includes('跳跃'))return'JUMP_SQUAT';if(n.includes('钻石'))return'DIAMOND_PUSHUP';
+  if(n.includes('宽距'))return'WIDE_PUSHUP';if(n.includes('臂屈伸'))return'TRICEP_DIP';if(n.includes('侧平举'))return'LATERAL_RAISE';
+  if(n.includes('前平举'))return'FRONT_RAISE';if(n.includes('跪姿'))return'KNEE_PUSHUP';if(n.includes('上斜'))return'INCLINE_PUSHUP';
+  if(n.includes('转体'))return'RUSSIAN_TWIST';if(n.includes('死虫'))return'DEAD_BUG';if(n.includes('鸟狗'))return'BIRD_DOG';
+  if(n.includes('侧平板'))return'SIDE_PLANK';if(n.includes('登山'))return'MOUNTAIN_CLIMBER';if(n.includes('卷腹'))return'V_CRUNCH';
+  if(n.includes('波比'))return'BURPEE';if(n.includes('开合'))return'JUMPING_JACK';
+  if(n.includes('单腿深蹲'))return'PISTOL_SQUAT';if(n.includes('后撤步'))return'REVERSE_LUNGE';if(n.includes('交替弓步跳'))return'LUNGE_JUMP';
+  if(n.includes('蛙跳'))return'FROG_JUMP';if(n.includes('蟹步'))return'CRAB_WALK';if(n.includes('引体向上'))return'PULL_UP';
+  if(n.includes('俯身划船'))return'BENT_ROW';if(n.includes('蜘蛛人'))return'SPIDERMAN_PUSHUP';if(n.includes('仰卧抬腿'))return'LEG_RAISE';
+  if(n.includes('剪刀腿'))return'SCISSOR_KICK';if(n.includes('触踝'))return'HEEL_TOUCH';if(n.includes('交替抬手'))return'PLANK_ARM_RAISE';
+  if(n.includes('猫牛'))return'CAT_COW';if(n.includes('下犬'))return'DOWNWARD_DOG';if(n.includes('婴儿'))return'CHILD_POSE';
+  if(n.includes('肩部拉伸'))return'SHOULDER_STRETCH';if(n.includes('体前屈'))return'STANDING_FORWARD';if(n.includes('上犬'))return'UPWARD_DOG';
+  return'SQUAT';
+}
+
+// WS
+function wsConnect(){
+  ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws/training');
+  ws.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    if(m.type==='SESSION_STARTED')sessionId=m.sessionId;
+    else if(m.type==='FEEDBACK')onFeedback(m.data);
+    else if(m.type==='SESSION_ENDED')endTraining();
+  };
+}
+function wsSend(d){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(d))}
+
+// Feedback: deduplicate + auto-pause on new errors
+function onFeedback(data){
+  $('hudScore').textContent=data.score;
+  scores.push(data.score);
+  const fb=$('fbMsg');
+  if(data.isCorrect||!data.errors||data.errors.length===0){
+    fb.textContent='✓ 姿势标准';fb.className='fb-msg ok';
+  }else{
+    // Generate unique key for this error combination
+    const errKey=data.errors.map(e=>e.joint+':'+e.tip).sort().join('|');
+    // Only count as new error if different from last frame's error
+    if(errKey!==lastErrKey){
+      errorFrames++;$('hudErrors').textContent=errorFrames;$('errBadge').style.display='block';
+      lastErrKey=errKey;
+      const tips=data.errors.map(e=>e.joint+':'+e.tip).join(' | ');
+      fb.textContent=tips;fb.className='fb-msg err';
+      fb.style.transform='scale(1.03)';setTimeout(()=>fb.style.transform='scale(1)',100);
+      data.errors.forEach(e=>{errorMap[e.tip]=(errorMap[e.tip]||0)+1});
+    }
+  }
+}
+
+// Start
+window.startCamera=async function(){
+  if(!authToken){alert('请先登录');return}
+  try{
+    $('resOverlay').classList.add('hidden');
+    if(!pose){
+      let v;for(const u of CDN){try{v=await FilesetResolver.forVisionTasks(u);break}catch(e){}}
+      if(!v){alert('CDN加载失败');return}
+      let err;for(const u of MODEL){try{pose=await PoseLandmarker.createFromOptions(v,{baseOptions:{modelAssetPath:u,delegate:'GPU'},runningMode:'VIDEO',numPoses:1});break}catch(e){err=e}}
+      if(!pose){alert('模型加载失败');return}
+    }
+    const vid=$('video');
+    if(vid.srcObject){vid.srcObject.getTracks().forEach(t=>t.stop());vid.srcObject=null}
+    vid.removeAttribute('src');
+    if(uploadedVideo){vid.src=uploadedVideo;vid.loop=true;vid.muted=true;await vid.play().catch(()=>{})}
+    else if(!vid.srcObject){const s=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});vid.srcObject=s;await vid.play()}
+    $('canvas').width=640;$('canvas').height=480;
+  }catch(e){alert('初始化失败: '+e.message);return}
+
+  frameIdx=0;scores=[];errorMap={};totalFrames=0;errorFrames=0;lastErrKey='';trainStart=Date.now();
+  $('hudScore').textContent='--';$('hudErrors').textContent='0';$('errBadge').style.display='none';
+  $('personBadge').style.display='none';$('hudTime').textContent='00:00';
+  $('fbMsg').textContent='训练中...';$('fbMsg').className='fb-msg ok';
+  $('btnStart').style.display='none';$('btnStop').style.display='inline-block';
+
+  if(!ws||ws.readyState!==WebSocket.OPEN)wsConnect();
+  isRunning=true;
+  if(timerInterval)clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{const s=Math.floor((Date.now()-trainStart)/1000);$('hudTime').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},500);
+  const uid=currentUser?currentUser.id:1;
+  setTimeout(()=>wsSend({action:'START',userId:uid,movementId:curId}),500);
+  predictLoop();
+};
+
+function predictLoop(){
+  if(!isRunning){animId=requestAnimationFrame(predictLoop);return}
+  const vid=$('video'),c=$('canvas'),ctx=c.getContext('2d');
+  if(pose&&vid.readyState>=2){
+    const r=pose.detectForVideo(vid,performance.now());
+    ctx.clearRect(0,0,c.width,c.height);
+    if(r.landmarks&&r.landmarks.length>0){
+      $('personBadge').style.display='none';
+      drawSkel(ctx,r.landmarks[0],c.width,c.height);
+      if(frameIdx%3===0&&sessionId)wsSend({action:'FRAME',sessionId,frameIndex:frameIdx,movementType:getMoveType(),landmarks:r.landmarks[0].map(l=>({x:l.x,y:l.y,z:l.z||0,visibility:l.visibility||0.9}))});
+      frameIdx++;totalFrames++;
+    }else{
+      $('personBadge').style.display='block';
+      $('fbMsg').textContent='未检测到人体，请面对摄像头';
+      $('fbMsg').className='fb-msg err';
+    }
+  }
+  animId=requestAnimationFrame(predictLoop);
+}
+
+function drawSkel(ctx,lm,w,h){
+  const keys=[11,12,13,14,15,16,23,24,25,26,27,28];
+  for(const i of keys){if(!lm[i])continue;const x=lm[i].x*w,y=lm[i].y*h;ctx.beginPath();ctx.arc(x,y,(i===25||i===26)?5:3.5,0,2*Math.PI);ctx.fillStyle='#2dd4bf';ctx.fill();ctx.shadowColor='#2dd4bf';ctx.shadowBlur=6;ctx.fill();ctx.shadowBlur=0}
+  const lines=[[11,12],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[11,13],[13,15],[12,14],[14,16]];
+  ctx.strokeStyle='#2dd4bf';ctx.lineWidth=1.8;ctx.lineCap='round';ctx.shadowColor='#2dd4bf';ctx.shadowBlur=4;
+  for(const[i,j]of lines){if(!lm[i]||!lm[j])continue;ctx.beginPath();ctx.moveTo(lm[i].x*w,lm[i].y*h);ctx.lineTo(lm[j].x*w,lm[j].y*h);ctx.stroke()}
+  ctx.shadowBlur=0;
+}
+
+window.endTraining=function(){
+  if(!isRunning)return;
+  isRunning=false;
+  if(animId)cancelAnimationFrame(animId);if(timerInterval)clearInterval(timerInterval);
+  if(sessionId){wsSend({action:'END',sessionId});sessionId=null}
+  $('btnStart').style.display='inline-block';$('btnStop').style.display='none';
+  $('fbMsg').textContent='训练已结束';$('fbMsg').className='fb-msg ok';
+  $('errBadge').style.display='none';
+  // Result
+  const dur=Math.round((Date.now()-trainStart)/1000);
+  const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0;
+  const grade=avg>=95?'S':avg>=85?'A':avg>=70?'B':avg>=55?'C':'D';
+  const sorted=Object.entries(errorMap).sort((a,b)=>b[1]-a[1]);
+  const m=MOVES.find(x=>x.id===curId);
+
+  $('rMoveName').textContent=m?m.n:'--';
+  $('rTime').textContent=dur+'s';$('rAvg').textContent=avg||'--';$('rFrames').textContent=totalFrames;
+
+  const ring=$('rRing');
+
+  if(totalFrames===0){
+    // No person detected at all
+    ring.style.borderColor='#f59e0b';ring.style.background='rgba(245,158,11,.04)';
+    $('rScore').textContent='--';$('rGrade').textContent='无数据';
+    $('rVerdict').innerHTML='<span style="color:#f59e0b;font-size:15px">⚠️ 未检测到人体，请面对摄像头</span>';
+    $('rErrors').innerHTML='';
+  }else if(!sorted.length){
+    ring.style.borderColor='var(--good)';ring.style.background='rgba(34,197,94,.04)';
+    $('rScore').textContent=avg||'--';$('rGrade').textContent=grade;
+    $('rVerdict').innerHTML='<span style="color:var(--good);font-size:15px">🎉 姿势标准，没有检测到错误！</span>';
+    $('rErrors').innerHTML='';
+  }else{
+    if(avg>=85)ring.style.borderColor='var(--good)';else if(avg>=60)ring.style.borderColor='var(--accent)';else ring.style.borderColor='var(--bad)';
+    ring.style.background=avg>=60?'rgba(52,211,153,.04)':'rgba(239,68,68,.04)';
+    $('rScore').textContent=avg||'--';$('rGrade').textContent=grade;
+    $('rVerdict').innerHTML='<span style="color:var(--bad);font-size:15px">检测到 <b>'+sorted.length+'</b> 类错误，共 <b>'+errorFrames+'</b> 帧</span>';
+    $('rErrors').innerHTML='<div style="font-size:12px;color:var(--muted);margin-bottom:4px">错误排行</div>'+sorted.slice(0,5).map(([k,v])=>`<div class="e"><span class="t">${k}</span><span>${v} 帧</span></div>`).join('');
+  }
+  $('resOverlay').classList.remove('hidden');
+};
+
+window.resetAll=()=>{
+  $('resOverlay').classList.add('hidden');
+  $('hudScore').textContent='--';$('hudTime').textContent='00:00';
+  $('hudErrors').textContent='0';$('errBadge').style.display='none';
+  $('fbMsg').textContent='准备开始训练';$('fbMsg').className='fb-msg ok';
+  uploadedVideo=null;const lb=$('uploadLabel');lb.classList.remove('ready');lb.innerHTML='📁 上传<input type="file" accept="video/*" id="fileInput" onchange="onVideo(event)">';
+};
+
+// Login/Register
+let isRegister=false;
+window.doLogin=async function(){
+  const u=$('loginUser').value.trim(),p=$('loginPass').value.trim();
+  if(!u||!p){$('loginError').style.display='block';$('loginError').textContent='请输入用户名和密码';return}
+  const endpoint=isRegister?'/api/auth/register':'/api/auth/login';
+  const body=isRegister?{username:u,password:p,nickname:u}:{username:u,password:p};
+  try{
+    const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await res.json();
+    if(d.code===200&&d.data&&d.data.token){
+      authToken=d.data.token;
+      currentUser={id:d.data.userId,name:d.data.nickname||d.data.username};
+      $('loginOverlay').classList.add('hidden');
+      $('loginError').style.display='none';
+      $('btnStart').textContent='▶ 开始训练';
+      updateUserBadge();
+    }else{
+      $('loginError').style.display='block';$('loginError').textContent=d.message||'操作失败';
+    }
+  }catch(e){$('loginError').style.display='block';$('loginError').textContent='网络错误'};
+};
+window.toggleLogin=function(){
+  isRegister=!isRegister;
+  $('loginTitle').textContent=isRegister?'注册新账号':'登录你的账号';
+  $('toggleBtn').textContent=isRegister?'已有账号？登录':'没有账号？注册';
+  $('loginBtn').textContent=isRegister?'注册':'登录';
+  $('loginUser').value=isRegister?'':'demo';
+  $('loginPass').value='';
+  $('loginError').style.display='none';
+};
+function updateUserBadge(){
+  if(currentUser) $('userBadge').textContent='👤 '+currentUser.name;
+}
+window.logout=function(){
+  if(confirm('确定退出 '+currentUser.name+' 吗？')){
+    authToken='';currentUser=null;sessionId=null;
+    $('loginOverlay').classList.remove('hidden');$('userBadge').textContent='';
+    $('loginUser').value='demo';$('loginPass').value='123456';
+    if(isRegister)toggleLogin();
+  }
+};
+// Press Enter to login
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!$('loginOverlay').classList.contains('hidden'))doLogin()});
+
+wsConnect();
+
+// Show tutorial video
+window.showDemo=async function(){
+  try{
+    const res=await fetch('/api/movements');
+    const d=await res.json();
+    if(d.data){
+      const m=d.data.find(x=>x.id===curId);
+      if(m&&m.videoUrl){window.open(m.videoUrl,'_blank');return}
+    }
+  }catch(e){}
+  // Fallback: Bilibili search
+  const m=MOVES.find(x=>x.id===curId);
+  if(m)window.open('https://search.bilibili.com/all?keyword='+encodeURIComponent(m.n+' 标准动作 教学'),'_blank');
+};
+
+// History
+window.showHistory=async function(){
+  if(!authToken){alert('刷新页面自动登录');return}
+  try{
+    const res=await fetch('/api/reports?page=1&size=5',{headers:{'Authorization':'Bearer '+authToken}});
+    const d=await res.json();
+    if(!d.data||!d.data.records||!d.data.records.length){alert('暂无训练记录，先训练一次吧');return}
+    alert('最近训练:\n\n'+d.data.records.map(r=>'#'+r.id+' 得分:'+(r.score||'--')+' '+((r.createdAt||'').substring(0,16))).join('\n'));
+  }catch(e){alert('获取失败')}
+};
+</script>
+</body>
+</html>

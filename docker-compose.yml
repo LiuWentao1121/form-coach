@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: form-coach-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: form_coach
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/main/resources/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7-alpine
+    container_name: form-coach-redis
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    container_name: form-coach-app
+    ports:
+      - "8088:8088"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/form_coach?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_DATA_REDIS_HOST: redis
+    depends_on:
+      - mysql
+      - redis
+
+volumes:
+  mysql_data:
