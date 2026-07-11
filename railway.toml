@@ -2,6 +2,6 @@
 builder = "DOCKERFILE"
 
 [deploy]
-healthcheckPath = "/"
+healthcheckPath = "/actuator/health"
 healthcheckTimeout = 300
 startTimeout = 600
