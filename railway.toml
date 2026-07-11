@@ -3,4 +3,5 @@ builder = "DOCKERFILE"
 
 [deploy]
 healthcheckPath = "/"
-healthcheckTimeout = 100
+healthcheckTimeout = 300
+startTimeout = 600
