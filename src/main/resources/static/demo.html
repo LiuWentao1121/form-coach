@@ -124,6 +124,7 @@ option{color:var(--text);background:var(--surface);font-weight:400;padding:6px}
 </div>
 
 <div class="controls">
+  <button class="btn" style="background:var(--surface);color:var(--muted);border:1px solid var(--border);font-size:13px;padding:8px 12px" onclick="flipCamera()">🔄</button>
   <button class="btn btn-go" id="btnStart" onclick="startCamera()">▶ 开始训练</button>
   <button class="btn btn-stop" id="btnStop" onclick="endTraining()" style="display:none">⏹ 结束</button>
   <button class="btn" style="background:var(--surface);color:var(--muted);border:1px solid var(--border);font-size:13px;padding:8px 16px" onclick="showDemo()">📺 示范</button>
@@ -138,7 +139,7 @@ const MOVES=[{id:1,n:'深蹲',c:'下肢'},{id:2,n:'俯卧撑',c:'上肢'},{id:3,
 
 const $=id=>document.getElementById(id);
 let pose,ws,sessionId,isRunning=false,animId,timerInterval,trainStart;
-let curId=1,frameIdx=0,scores=[],errorMap={},totalFrames=0,errorFrames=0,lastErrKey='',uploadedVideo=null,authToken='',currentUser=null;
+let curId=1,frameIdx=0,scores=[],errorMap={},totalFrames=0,errorFrames=0,lastErrKey='',uploadedVideo=null,authToken='',currentUser=null,cameraFacing='user';
 
 // Init moves
 function renderMoves(filter=''){
@@ -176,6 +177,8 @@ function getMoveType(){
   if(n.includes('肩部拉伸'))return'SHOULDER_STRETCH';if(n.includes('体前屈'))return'STANDING_FORWARD';if(n.includes('上犬'))return'UPWARD_DOG';
   return'SQUAT';
 }
+
+window.flipCamera=function(){cameraFacing=cameraFacing==='user'?'environment':'user'};
 
 // WS
 function wsConnect(){
@@ -226,7 +229,7 @@ window.startCamera=async function(){
     if(vid.srcObject){vid.srcObject.getTracks().forEach(t=>t.stop());vid.srcObject=null}
     vid.removeAttribute('src');
     if(uploadedVideo){vid.src=uploadedVideo;vid.loop=true;vid.muted=true;await vid.play().catch(()=>{})}
-    else if(!vid.srcObject){const s=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});vid.srcObject=s;await vid.play()}
+    else if(!vid.srcObject){const s=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:cameraFacing}});vid.srcObject=s;await vid.play()}
     $('canvas').width=640;$('canvas').height=480;
   }catch(e){alert('初始化失败: '+e.message);return}
 
