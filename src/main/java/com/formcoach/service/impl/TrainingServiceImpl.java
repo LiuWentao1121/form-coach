@@ -14,7 +14,6 @@ import com.formcoach.mapper.FrameDataMapper;
 import com.formcoach.mapper.MovementMapper;
 import com.formcoach.mapper.TrainingSessionMapper;
 import com.formcoach.service.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -27,7 +26,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TrainingServiceImpl implements TrainingService {
 
     private final TrainingSessionMapper sessionMapper;
@@ -38,7 +36,15 @@ public class TrainingServiceImpl implements TrainingService {
     private final ErrorDetector errorDetector;
     private final ScoreCalculator scoreCalculator;
     private final AchievementService achievementService;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
+
+    public TrainingServiceImpl(TrainingSessionMapper a, FrameDataMapper b, AngleResultMapper c,
+            MovementMapper d, AngleCalculator e, ErrorDetector f, ScoreCalculator g, AchievementService h,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) RedisTemplate<String, Object> i) {
+        this.sessionMapper = a; this.frameDataMapper = b; this.angleResultMapper = c;
+        this.movementMapper = d; this.angleCalculator = e; this.errorDetector = f;
+        this.scoreCalculator = g; this.achievementService = h; this.redisTemplate = i;
+    }
 
     private static final String SESSION_KEY_PREFIX = "training:session:";
     private static final long SESSION_TTL_HOURS = 24;

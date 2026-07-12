@@ -24,10 +24,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class RateLimitAspect {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
     private final Map<String, Long> localCounters = new ConcurrentHashMap<>();
 
-    public RateLimitAspect(RedisTemplate<String, Object> redisTemplate) {
+    public RateLimitAspect(@org.springframework.beans.factory.annotation.Autowired(required = false) RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 

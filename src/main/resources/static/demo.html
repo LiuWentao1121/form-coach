@@ -336,6 +336,8 @@ window.doLogin=async function(){
     if(d.code===200&&d.data&&d.data.token){
       authToken=d.data.token;
       currentUser={id:d.data.userId,name:d.data.nickname||d.data.username};
+      localStorage.setItem('fc_token',authToken);
+      localStorage.setItem('fc_user',JSON.stringify(currentUser));
       $('loginOverlay').classList.add('hidden');
       $('loginError').style.display='none';
       $('btnStart').textContent='▶ 开始训练';
@@ -354,12 +356,19 @@ window.toggleLogin=function(){
   $('loginPass').value='';
   $('loginError').style.display='none';
 };
+// Auto-restore saved login
+(function(){
+  const t=localStorage.getItem('fc_token');
+  const u=localStorage.getItem('fc_user');
+  if(t&&u){authToken=t;currentUser=JSON.parse(u);$('loginOverlay').classList.add('hidden');$('btnStart').textContent='▶ 开始训练'}
+})();
 function updateUserBadge(){
   if(currentUser) $('userBadge').textContent='👤 '+currentUser.name;
 }
 window.logout=function(){
   if(confirm('确定退出 '+currentUser.name+' 吗？')){
     authToken='';currentUser=null;sessionId=null;
+    localStorage.removeItem('fc_token');localStorage.removeItem('fc_user');
     $('loginOverlay').classList.remove('hidden');$('userBadge').textContent='';
     $('loginUser').value='demo';$('loginPass').value='123456';
     if(isRegister)toggleLogin();
