@@ -178,7 +178,18 @@ function getMoveType(){
   return'SQUAT';
 }
 
-window.flipCamera=function(){cameraFacing=cameraFacing==='user'?'environment':'user'};
+window.flipCamera=async function(){
+  cameraFacing=cameraFacing==='user'?'environment':'user';
+  const vid=$('video');
+  if(vid.srcObject){
+    vid.srcObject.getTracks().forEach(t=>t.stop());
+    vid.srcObject=null;
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:cameraFacing}});
+      vid.srcObject=s;await vid.play();
+    }catch(e){}
+  }
+};
 
 // WS
 function wsConnect(){
@@ -210,6 +221,11 @@ function onFeedback(data){
       fb.textContent=tips;fb.className='fb-msg err';
       fb.style.transform='scale(1.03)';setTimeout(()=>fb.style.transform='scale(1)',100);
       data.errors.forEach(e=>{errorMap[e.tip]=(errorMap[e.tip]||0)+1});
+      // Voice prompt for new errors
+      const tipMsg=(data.errors[0]||{}).tip;
+      if(tipMsg&&window.speechSynthesis){
+        try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(tipMsg);u.lang="zh-CN";u.rate=1.1;window.speechSynthesis.speak(u)}catch(e){}
+      }
     }
   }
 }
@@ -217,6 +233,8 @@ function onFeedback(data){
 // Start
 window.startCamera=async function(){
   if(!authToken){alert('请先登录');return}
+  // Init speech synthesis (browser requires user gesture first)
+  if(window.speechSynthesis){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance('');u.volume=0;window.speechSynthesis.speak(u)}
   try{
     $('resOverlay').classList.add('hidden');
     if(!pose){
